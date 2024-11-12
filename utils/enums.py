@@ -53,3 +53,16 @@ class Relationship(models.TextChoices):
     COUSIN = 'cousin', _('Cousin')
     NEIGHBOUR = 'neighbour', _('Neighbour')
     GURDIAN = 'gurdian', _('Gurdian')
+
+class CourseLevel(models.TextChoices):
+    BEGINNERS = 'beginners', 'Beginners'
+    INTERMEDIATE = 'intermediate', 'Intermediate'
+    ADVANCED = 'advanced', 'Advanced'
+    PROFESSIONAL = 'professional', 'Professional'
+    Master = 'master', 'Master'
+    Genius = 'genius', 'Genius'
+
+class Priority(models.TextChoices):
+    HIGH = 'high', 'High'
+    MEDIUM = 'medium', 'Medium'
+    LOW = 'low', 'Low'

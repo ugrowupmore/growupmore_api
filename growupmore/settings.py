@@ -11,6 +11,9 @@ env = environ.Env()
 # Reading .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+# Access the API key
+GLOBAL_API_KEY = os.getenv("GLOBAL_API_KEY")
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-^yj1l4kenaygu7k#g%w9n&9^s^jb4qubufh9-35jwm8vld*01#'
@@ -33,6 +36,9 @@ INSTALLED_APPS = [
     'corsheaders', 
     'utils',
     'master',
+    'hr',
+    'learn',
+    'product',
 ]
 
 MIDDLEWARE = [
@@ -89,6 +95,9 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'utils.authentication.GlobalTokenAuthentication',  # Path to your custom auth class
     ],
 }
 

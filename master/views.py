@@ -192,8 +192,8 @@ class CourseSubCategoryViewSet(viewsets.ModelViewSet):
     queryset = CourseSubCategory.objects.select_related('course_category').all()
     serializer_class = CourseSubCategorySerializer    
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['sub_category', 'status', 'is_active', 'category']
-    search_fields = ['sub_category', 'status', 'is_active', 'category']
+    filterset_fields = ['sub_category', 'status', 'is_active', 'course_category__category']
+    search_fields = ['sub_category', 'status', 'is_active', 'course_category__category']
     ordering_fields = '__all__'
     ordering = ['sub_category']
 
