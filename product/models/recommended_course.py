@@ -16,7 +16,7 @@ class RecommendedCourse(BaseModel):
     description = models.TextField(blank=True, null=True)
 
     class Meta:
-        db_table = '"course"."recommended_courses"'
+        db_table = '"product"."recommended_courses"'
         indexes = [
             models.Index(fields=['course']),
             models.Index(fields=['recommended_course']),

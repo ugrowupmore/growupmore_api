@@ -14,7 +14,7 @@ class CourseModule(BaseModel):
     description = models.TextField(blank=True, null=True)
 
     class Meta:
-        db_table = '"course"."course_modules"'
+        db_table = '"product"."course_modules"'
         indexes = [
             models.Index(fields=['module_name']),
             models.Index(fields=['course']),

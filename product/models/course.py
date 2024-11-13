@@ -40,7 +40,7 @@ class Course(BaseModel):
     apply_for = models.TextField(blank=True, null=True)
 
     class Meta:
-        db_table = '"course"."courses"'
+        db_table = '"product"."courses"'
         indexes = [
             models.Index(fields=['code']),
             models.Index(fields=['title']),

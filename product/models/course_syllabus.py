@@ -18,7 +18,7 @@ class CourseSyllabus(BaseModel):
     topic = models.ForeignKey(Topic, on_delete=models.SET_NULL, null=True, blank=True, related_name='course_syllabuses')
 
     class Meta:
-        db_table = '"course"."course_syllabus"'
+        db_table = '"product"."course_syllabus"'
         indexes = [
             models.Index(fields=['course']),
             models.Index(fields=['module']),
