@@ -45,7 +45,7 @@ class Subject(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.subject_code})"
-
+    
 
 # Register the image delete signals for the Subject model
 register_image_delete_signal(Subject, 'image')

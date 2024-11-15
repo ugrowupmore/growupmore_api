@@ -14,7 +14,7 @@ from utils.pagination import KendoPagination
 
 # Subject ViewSet
 class SubjectViewSet(viewsets.ModelViewSet):
-    queryset = Subject.objects.select_related('subject_code').all()
+    queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['name', 'short_name', 'subject_code', 'status', 'is_active']

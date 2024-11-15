@@ -17,4 +17,5 @@ class CourseCategory(BaseModel):
         ]
 
     def __str__(self):
-        return self.category
+        return self.category if self.category else "No Category"
+

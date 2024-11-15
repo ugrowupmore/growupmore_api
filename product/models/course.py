@@ -54,7 +54,9 @@ class Course(BaseModel):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.title} ({self.code})"
+        title = self.title if self.title else "No Title"
+        code = self.code if self.code else "No Code"
+        return f"{title} ({code})"
 
 
 # Register the image delete signal for the Course model

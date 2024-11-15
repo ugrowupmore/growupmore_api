@@ -20,4 +20,5 @@ class CourseSubCategory(BaseModel):
         ]
 
     def __str__(self):
-        return self.sub_category
+        return self.sub_category if self.sub_category else "No Subcategory"
+

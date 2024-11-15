@@ -84,7 +84,7 @@ DATABASES = {
 
 # If you are using multiple schemas
 DATABASES['default']['OPTIONS'] = {
-    'options': '-c search_path=public,master,hr,learn',
+    'options': '-c search_path=public,master,hr,learn,product',
 }
 
 
