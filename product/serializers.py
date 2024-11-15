@@ -9,18 +9,8 @@ from product.models.recommended_course import RecommendedCourse
 
 class CourseSerializer(serializers.ModelSerializer):
     logo = serializers.ImageField(max_length=200, default="na.png", required=False)
-    course_category_name = serializers.CharField(
-        source='course_category.category',
-        read_only=True,
-        allow_null=True,
-        default=''
-    )
-    sub_category_name = serializers.CharField(
-        source='sub_category.sub_category',
-        read_only=True,
-        allow_null=True,
-        default=''
-    )
+    course_category_name = serializers.CharField(source='course_category.category', read_only=True)
+    sub_category_name = serializers.CharField(source='sub_category.sub_category', read_only=True)
 
     class Meta:
         model = Course
