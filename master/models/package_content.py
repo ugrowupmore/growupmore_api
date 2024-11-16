@@ -9,8 +9,7 @@ from master.models.content import Content
 class PackageContent(BaseModel):
     id = models.AutoField(primary_key=True)
     package = models.ForeignKey(Package, null=True, blank=True, on_delete=models.SET_NULL, related_name='package_contents')
-    content = models.ForeignKey(Content, null=True, blank=True, on_delete=models.SET_NULL, related_name='package_contents')
-    is_active = models.BooleanField(default=False)
+    content = models.ForeignKey(Content, null=True, blank=True, on_delete=models.SET_NULL, related_name='package_contents')    
     
     class Meta:
         db_table = '"master"."package_contents"'
