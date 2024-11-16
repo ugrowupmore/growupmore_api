@@ -23,7 +23,7 @@ class Topic(BaseModel):
     video_url = models.URLField(blank=True, null=True)
     video_title = models.CharField(max_length=70, blank=True, null=True)
     video_description = models.TextField(blank=True, null=True)
-    tags = models.JSONField(default=list, blank=True)
+    tags = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = '"learn"."topics"'
