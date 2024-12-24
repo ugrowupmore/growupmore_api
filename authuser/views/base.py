@@ -45,6 +45,8 @@ class BaseRegisterView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save()
+        logger.debug(f"User saved: {user.email}")
+
         user_type = self.get_user_type(user)
         token = jwt.encode(
             {'user_id': user.id, 'user_type': user_type, 'exp': datetime.utcnow() + timedelta(hours=24)},
@@ -54,7 +56,14 @@ class BaseRegisterView(generics.CreateAPIView):
         activation_link = self.request.build_absolute_uri(reverse(self.activation_url_name, kwargs={'token': token}))
         html_content = self.email_template.format(name=user.first_name or 'User', activation_link=activation_link)
         subject = self.email_subject
-        send_custom_email(subject, html_content, [user.email])
+        logger.debug(f"Preparing to send activation email to: {user.email}")
+        
+        try:
+            send_custom_email(subject, html_content, [user.email])
+            logger.info(f"Activation email sent to: {user.email}")
+        except Exception as e:
+            logger.error(f"Error sending activation email to {user.email}: {str(e)}", exc_info=True)
+
         logger.info(f"New user registered: {user.email}")
 
     def get_user_type(self, user):
