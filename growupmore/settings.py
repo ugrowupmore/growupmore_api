@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_spectacular',
     'drf_spectacular_sidecar',  
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',     
     'corsheaders',            
     'utils',
