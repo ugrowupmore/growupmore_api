@@ -1,5 +1,3 @@
-# settings.py
-
 from pathlib import Path
 import environ
 import os
@@ -13,11 +11,9 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
-    EMAIL_BACKEND=(str, 'django.core.mail.backends.smtp.EmailBackend'),
-    EMAIL_USE_SSL=(bool, False),
-    EMAIL_USE_TLS=(bool, False),
     GOOGLE_RECAPTCHA_SECRET_KEY=(str, ''),
     GOOGLE_RECAPTCHA_SITE_KEY=(str, ''),
+    DISABLE_RECAPTCHA=(bool, False),
     # Add other environment variables with their default types here
 )
 
@@ -42,6 +38,10 @@ GOOGLE_RECAPTCHA_SITE_KEY = env("GOOGLE_RECAPTCHA_SITE_KEY")
 
 # New setting
 DISABLE_RECAPTCHA = env.bool("DISABLE_RECAPTCHA", default=False)
+
+# SendGrid configuration
+SENDGRID_API_KEY = env("SENDGRID_API_KEY")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 
 # Application definition
 INSTALLED_APPS = [
@@ -280,7 +280,6 @@ LOGGING = {
     },
 }
 
-
 # CORS configuration
 # CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=True)
 # CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
@@ -319,26 +318,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # for deployment
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Hostgator Email configuration
-# EMAIL_HOST = env("EMAIL_HOST")
-# EMAIL_PORT = env.int("EMAIL_PORT")
-# EMAIL_HOST_USER = env("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
-# EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=True)
-# DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
-
-# Gmail Workspace Email configuration
-EMAIL_BACKEND = env('EMAIL_BACKEND')
-EMAIL_HOST = env('EMAIL_HOST')
-EMAIL_PORT = env('EMAIL_PORT')
-EMAIL_HOST_USER = env('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+# SendGrid Email configuration (Removed Hostgator and Gmail settings)
+SENDGRID_API_KEY = env("SENDGRID_API_KEY")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 FRONTEND_BASE_URL = "http://127.0.0.1:9000"
