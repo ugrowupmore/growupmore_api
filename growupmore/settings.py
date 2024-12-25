@@ -14,6 +14,8 @@ env = environ.Env(
     GOOGLE_RECAPTCHA_SECRET_KEY=(str, ''),
     GOOGLE_RECAPTCHA_SITE_KEY=(str, ''),
     DISABLE_RECAPTCHA=(bool, False),
+    SENDGRID_API_KEY=(str, ''),          # Added
+    DEFAULT_FROM_EMAIL=(str, ''),        # Added
     # Add other environment variables with their default types here
 )
 
