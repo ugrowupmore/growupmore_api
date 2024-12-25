@@ -8,7 +8,10 @@ from authuser.models import (
     StudentBlacklistedToken, EmployeeBlacklistedToken,
     InstructorBlacklistedToken, InstituteBlacklistedToken
 )
-from utils.authentication_wrappers import GenericUserWrapper
+from django.contrib.auth import get_user_model
+from utils.authentication_wrappers import GenericUserWrapper  # Import the wrapper
+
+User = get_user_model()
 
 USER_MODELS = {
     'student': (Student, StudentBlacklistedToken),
@@ -19,43 +22,44 @@ USER_MODELS = {
 
 class UnifiedJWTAuthentication(authentication.BaseAuthentication):
     """
-    Unified JWT Authentication class to handle multiple user types.
+    Custom JWT Authentication supporting multiple user types, including superusers.
     """
 
     def authenticate(self, request):
         auth_header = authentication.get_authorization_header(request).split()
 
         if not auth_header or auth_header[0].lower() != b'bearer':
-            return None  # No authentication attempted
+            return None
 
         if len(auth_header) == 1:
-            raise exceptions.AuthenticationFailed('Invalid token header. No credentials provided.')
+            msg = 'Invalid token header. No credentials provided.'
+            raise exceptions.AuthenticationFailed(msg)
         elif len(auth_header) > 2:
-            raise exceptions.AuthenticationFailed('Invalid token header. Token string should not contain spaces.')
+            msg = 'Invalid token header. Token string should not contain spaces.'
+            raise exceptions.AuthenticationFailed(msg)
 
         try:
             token = auth_header[1].decode()
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-            jti = payload.get('jti')
-            if not jti:
-                raise exceptions.AuthenticationFailed('Invalid token: Missing jti.')
-
             user_id = payload.get('user_id')
             user_type = payload.get('user_type')
-            if user_type not in USER_MODELS:
+
+            if user_type in USER_MODELS:
+                user_model, _ = USER_MODELS[user_type]
+                user = user_model.objects.get(id=user_id)
+            elif user_type == 'superuser':
+                user = User.objects.get(id=user_id)
+            else:
                 raise exceptions.AuthenticationFailed('Invalid user type.')
 
-            user_model, blacklisted_token_model = USER_MODELS[user_type]
-            user = user_model.objects.get(id=user_id)
+            if not user.is_active:
+                raise exceptions.AuthenticationFailed('User account is inactive.')
 
-            # Check if the jti is blacklisted
-            if blacklisted_token_model.objects.filter(jti=jti).exists():
-                raise exceptions.AuthenticationFailed('Token has been blacklisted. Please login again.')
-
+            wrapped_user = GenericUserWrapper(user)  # Wrap the user
+            return (wrapped_user, token)
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed('Token has expired.')
-        except (jwt.InvalidTokenError, user_model.DoesNotExist):
+        except jwt.InvalidTokenError:
             raise exceptions.AuthenticationFailed('Invalid token.')
-
-        # Use GenericUserWrapper
-        return (GenericUserWrapper(user), token)
+        except (Employee.DoesNotExist, Institute.DoesNotExist, Instructor.DoesNotExist, Student.DoesNotExist, User.DoesNotExist):
+            raise exceptions.AuthenticationFailed('User not found.')

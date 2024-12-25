@@ -1,26 +1,25 @@
+
 # authuser/urls.py
 
 from django.urls import path
-from .views.student import (
+from .views import (
     StudentRegisterView, StudentActivateView, StudentLoginView, StudentLogoutView,
     StudentChangePasswordView, StudentForgotPasswordView, StudentPasswordResetView,
-    StudentProfileView
-)
-from .views.employee import (
+    StudentProfileView,
+
     EmployeeRegisterView, EmployeeActivateView, EmployeeLoginView, EmployeeLogoutView,
     EmployeeChangePasswordView, EmployeeForgotPasswordView, EmployeePasswordResetView,
-    EmployeeProfileView
-)
-from .views.instructor import (
+    EmployeeProfileView,
+
     InstructorRegisterView, InstructorActivateView, InstructorLoginView, InstructorLogoutView,
     InstructorChangePasswordView, InstructorForgotPasswordView, InstructorPasswordResetView,
-    InstructorProfileView
-)
-from .views.institute import (
+    InstructorProfileView,
+
     InstituteRegisterView, InstituteActivateView, InstituteLoginView, InstituteLogoutView,
     InstituteChangePasswordView, InstituteForgotPasswordView, InstitutePasswordResetView,
     InstituteProfileView
 )
+
 from .views.base import TestCaptchaView
 
 urlpatterns = [

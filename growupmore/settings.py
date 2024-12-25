@@ -13,7 +13,9 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
+    EMAIL_BACKEND=(str, 'django.core.mail.backends.smtp.EmailBackend'),
     EMAIL_USE_SSL=(bool, False),
+    EMAIL_USE_TLS=(bool, False),
     GOOGLE_RECAPTCHA_SECRET_KEY=(str, ''),
     GOOGLE_RECAPTCHA_SITE_KEY=(str, ''),
     # Add other environment variables with their default types here
@@ -50,15 +52,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'django_filters', 
-    'corsheaders', 
+    'drf_spectacular',
+    'drf_spectacular_sidecar',  
+    'django_filters',     
+    'corsheaders',            
     'utils',
     'authuser',
-    # 'master',
-    # 'hr',
-    # 'learn',
-    # 'product',
-    
+    'master',
+    'hr',
+    'curriculum',     
 ]
 
 MIDDLEWARE = [
@@ -99,11 +101,12 @@ DATABASES = {
 
 # If you are using multiple schemas
 DATABASES['default']['OPTIONS'] = {
-    'options': '-c search_path=public,authuser,master,hr,learn,product',
+    'options': '-c search_path=public,authuser,master,curriculum,hr',
 }
 
 # REST Framework configuration
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'utils.pagination.KendoPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_FILTER_BACKENDS': [
@@ -112,11 +115,26 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'authuser.authentication.UnifiedJWTAuthentication',
+        # 'authuser.authentication.UnifiedJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication', 
+        'authuser.authentication.unified_jwt_authentication.UnifiedJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated', 
     ),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'GrowUpMore API',
+    'DESCRIPTION': 'API documentation for GrowUpMore platform.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': '/api/',  # Adjust based on your API URLs
+    'SORT_OPERATION_PARAMETERS': True,
+    'ENUM_NAME_OVERRIDES': {},
+    'PREPROCESSING_HOOKS': [],
+    'POSTPROCESSING_HOOKS': [],
+    # ... other settings as needed ...
 }
 
 # Simple JWT Configuration
@@ -131,23 +149,133 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
-# Logging Configuration (Optional but Recommended)
+# Define admins who receive error emails
+ADMINS = [
+    ('Girish Chaudhary', 'girishinindia@gmail.com'),
+]
+
+# Optionally, define MANAGERS (usually the same as ADMINS)
+MANAGERS = ADMINS
+
+# Ensure the 'logs' directory exists
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Logging Configuration
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,
+    'disable_existing_loggers': False,  # Retain default Django loggers
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+    },
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} [{name}] {module}:{lineno} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
+        # Console Handler
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        # File Handlers for Each App with RotatingFileHandler
+        'file_authuser': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'authuser.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'file_utils': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'utils.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'file_master': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'master.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'file_hr': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'hr.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'file_curriculum': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'curriculum.log'),
+            'maxBytes': 5 * 1024 * 1024,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        # Mail Admins Handler for ERROR and above
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],  # Only send emails when DEBUG=False
         },
     },
     'loggers': {
-        'authuser': {
-            'handlers': ['console'],
-            'level': 'INFO',
+        # Django's internal logger for HTTP errors (like 500)
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': False,
         },
-        'utils': {
-            'handlers': ['console'],
+        # Authuser App Logger
+        'authuser': {
+            'handlers': ['console', 'file_authuser'],
             'level': 'INFO',
+            'propagate': True,
+        },
+        # Utils App Logger
+        'utils': {
+            'handlers': ['console', 'file_utils'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Master App Logger
+        'master': {
+            'handlers': ['console', 'file_master'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # HR App Logger
+        'hr': {
+            'handlers': ['console', 'file_hr'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Curriculum App Logger
+        'curriculum': {
+            'handlers': ['console', 'file_curriculum'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Root logger to catch any logs not caught by other loggers
+        '': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': True,
         },
     },
 }
@@ -191,13 +319,23 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # for deployment
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Email configuration
-EMAIL_HOST = env("EMAIL_HOST")
-EMAIL_PORT = env.int("EMAIL_PORT")
-EMAIL_HOST_USER = env("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
-EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+# Hostgator Email configuration
+# EMAIL_HOST = env("EMAIL_HOST")
+# EMAIL_PORT = env.int("EMAIL_PORT")
+# EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+# EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=True)
+# DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+
+# Gmail Workspace Email configuration
+EMAIL_BACKEND = env('EMAIL_BACKEND')
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env('EMAIL_PORT')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
