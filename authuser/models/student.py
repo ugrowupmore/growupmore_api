@@ -1,6 +1,3 @@
-
-# authuser/models/student.py
-
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils.timezone import now

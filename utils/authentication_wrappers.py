@@ -18,8 +18,6 @@ class GenericUserWrapper:
             return 'instructor'
         elif isinstance(self.user, Institute):
             return 'institute'
-        elif getattr(self.user, 'is_superuser', False):
-            return 'superuser'
         return 'unknown'
     
     def __getattr__(self, attr):

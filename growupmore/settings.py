@@ -51,16 +51,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'drf_spectacular',
-    'drf_spectacular_sidecar',  
-    'rest_framework_simplejwt.token_blacklist',
-    'django_filters',     
-    'corsheaders',            
+    'django_filters', 
+    'corsheaders', 
     'utils',
     'authuser',
-    'master',
-    'hr',
-    'curriculum',     
+    # 'master',
+    # 'hr',
+    # 'learn',
+    # 'product',
+    
 ]
 
 MIDDLEWARE = [
@@ -101,12 +100,11 @@ DATABASES = {
 
 # If you are using multiple schemas
 DATABASES['default']['OPTIONS'] = {
-    'options': '-c search_path=public,authuser,master,curriculum,hr',
+    'options': '-c search_path=public,authuser,master,hr,learn,product',
 }
 
 # REST Framework configuration
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'utils.pagination.KendoPagination',
     'PAGE_SIZE': 10,
     'DEFAULT_FILTER_BACKENDS': [
@@ -115,26 +113,11 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'authuser.authentication.UnifiedJWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication', 
-        'authuser.authentication.unified_jwt_authentication.UnifiedJWTAuthentication',
+        'authuser.authentication.UnifiedJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated', 
     ),
-}
-
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'GrowUpMore API',
-    'DESCRIPTION': 'API documentation for GrowUpMore platform.',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'SCHEMA_PATH_PREFIX': '/api/',  # Adjust based on your API URLs
-    'SORT_OPERATION_PARAMETERS': True,
-    'ENUM_NAME_OVERRIDES': {},
-    'PREPROCESSING_HOOKS': [],
-    'POSTPROCESSING_HOOKS': [],
-    # ... other settings as needed ...
 }
 
 # Simple JWT Configuration
@@ -149,137 +132,6 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
-# Define admins who receive error emails
-ADMINS = [
-    ('Girish Chaudhary', 'girishinindia@gmail.com'),
-]
-
-# Optionally, define MANAGERS (usually the same as ADMINS)
-MANAGERS = ADMINS
-
-# Ensure the 'logs' directory exists
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
-os.makedirs(LOGS_DIR, exist_ok=True)
-
-# Logging Configuration
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,  # Retain default Django loggers
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
-        },
-    },
-    'formatters': {
-        'verbose': {
-            'format': '[{levelname}] {asctime} [{name}] {module}:{lineno} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '[{levelname}] {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        # Console Handler
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        # File Handlers for Each App with RotatingFileHandler
-        'file_authuser': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'authuser.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'file_utils': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'utils.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'file_master': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'master.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'file_hr': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'hr.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        'file_curriculum': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'curriculum.log'),
-            'maxBytes': 5 * 1024 * 1024,  # 5 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
-        # Mail Admins Handler for ERROR and above
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
-            'filters': ['require_debug_false'],  # Only send emails when DEBUG=False
-        },
-    },
-    'loggers': {
-        # Django's internal logger for HTTP errors (like 500)
-        'django.request': {
-            'handlers': ['mail_admins'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        # Authuser App Logger
-        'authuser': {
-            'handlers': ['console', 'file_authuser'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Utils App Logger
-        'utils': {
-            'handlers': ['console', 'file_utils'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Master App Logger
-        'master': {
-            'handlers': ['console', 'file_master'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # HR App Logger
-        'hr': {
-            'handlers': ['console', 'file_hr'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Curriculum App Logger
-        'curriculum': {
-            'handlers': ['console', 'file_curriculum'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        # Root logger to catch any logs not caught by other loggers
-        '': {
-            'handlers': ['console'],
-            'level': 'WARNING',
-            'propagate': True,
-        },
-    },
-}
-
 
 # CORS configuration
 # CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=True)
@@ -288,20 +140,7 @@ LOGGING = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization settings
 LANGUAGE_CODE = 'en-us'

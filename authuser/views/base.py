@@ -1,31 +1,26 @@
 # authuser/views/base.py
 
-from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import status
 from django.utils import timezone
-from django.urls import reverse
-from django.conf import settings
+from datetime import timedelta, datetime
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 import jwt
-import logging
-import requests
-from datetime import datetime, timedelta
-
+from django.conf import settings
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.urls import reverse
 from utils.email_utils import send_custom_email
 from authuser.authentication import UnifiedJWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from authuser.permissions import IsStudent, IsEmployee, IsInstructor, IsInstitute
-
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
-from rest_framework import serializers
+import logging
+import requests
 
 logger = logging.getLogger(__name__)
 
-
-class BaseRegisterView(generics.CreateAPIView):
+class BaseRegisterView(APIView):
     """
     Abstract base class for user registration.
     """
@@ -43,19 +38,37 @@ class BaseRegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     authentication_classes = []  # No authentication needed for registration
 
-    def perform_create(self, serializer):
-        user = serializer.save()
-        user_type = self.get_user_type(user)
-        token = jwt.encode(
-            {'user_id': user.id, 'user_type': user_type, 'exp': datetime.utcnow() + timedelta(hours=24)},
-            settings.SECRET_KEY, algorithm='HS256'
-        )
-        # activation_link = f"{settings.FRONTEND_BASE_URL}/activate/{token}/"
-        activation_link = self.request.build_absolute_uri(reverse(self.activation_url_name, kwargs={'token': token}))
-        html_content = self.email_template.format(name=user.first_name or 'User', activation_link=activation_link)
-        subject = self.email_subject
-        send_custom_email(subject, html_content, [user.email])
-        logger.info(f"New user registered: {user.email}")
+    def post(self, request):
+        if not settings.DISABLE_RECAPTCHA:
+            recaptcha_token = request.data.get('recaptcha_token')
+            if not recaptcha_token:
+                logger.warning("Registration attempt without recaptcha_token.")
+                return Response({'error': 'recaptcha_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            recaptcha_response = self.verify_recaptcha(recaptcha_token)
+            if not recaptcha_response['success'] or recaptcha_response['score'] < 0.5:
+                logger.warning("Failed reCAPTCHA verification during registration.")
+                return Response({'error': 'reCAPTCHA verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.info("reCAPTCHA is disabled. Skipping verification for registration.")
+
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            user_type = self.get_user_type(user)
+            token = jwt.encode(
+                {'user_id': user.id, 'user_type': user_type, 'exp': datetime.utcnow() + timedelta(hours=24)},
+                settings.SECRET_KEY, algorithm='HS256'
+            )
+            # activation_link = f"{settings.FRONTEND_BASE_URL}/activate/{token}/"
+            activation_link = request.build_absolute_uri(reverse(self.activation_url_name, kwargs={'token': token}))
+            html_content = self.email_template.format(name=user.first_name or 'User', activation_link=activation_link)
+            subject = self.email_subject
+            send_custom_email(subject, html_content, [user.email])
+            logger.info(f"New user registered: {user.email}")
+            return Response({'message': 'Registration successful. Please check your email to activate your account.'}, status=status.HTTP_201_CREATED)
+        logger.warning(f"Registration failed: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_user_type(self, user):
         if hasattr(user, 'student_ptr'):
@@ -68,8 +81,21 @@ class BaseRegisterView(generics.CreateAPIView):
             return 'institute'
         return 'unknown'
 
+    def verify_recaptcha(self, token):
+        url = 'https://www.google.com/recaptcha/api/siteverify'
+        data = {
+            'secret': settings.GOOGLE_RECAPTCHA_SECRET_KEY,
+            'response': token
+        }
+        try:
+            response = requests.post(url, data=data)
+            return response.json()
+        except Exception as e:
+            logger.error(f"Error verifying reCAPTCHA: {str(e)}")
+            return {'success': False, 'score': 0}
 
-class BaseActivateView(generics.GenericAPIView):
+
+class BaseActivateView(APIView):
     """
     Abstract base class for account activation.
     """
@@ -121,7 +147,7 @@ class BaseLoginView(APIView):
                 return Response({'error': 'recaptcha_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
             
             recaptcha_response = self.verify_recaptcha(recaptcha_token)
-            if not recaptcha_response.get('success', False) or recaptcha_response.get('score', 0) < 0.5:
+            if not recaptcha_response['success'] or recaptcha_response['score'] < 0.5:
                 logger.warning("Failed reCAPTCHA verification during login.")
                 return Response({'error': 'reCAPTCHA verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -263,7 +289,6 @@ class BaseChangePasswordView(APIView):
     """
     authentication_classes = [UnifiedJWTAuthentication]  # Correctly set as a list
     permission_classes = [IsAuthenticated]
-    serializer_class = None  # To be defined in subclasses
 
     def post(self, request):
         user = request.user  # Get the authenticated user (GenericUserWrapper instance)
@@ -285,7 +310,7 @@ class BaseChangePasswordView(APIView):
         return Response({'message': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
 
-class BaseForgotPasswordView(generics.GenericAPIView):
+class BaseForgotPasswordView(APIView):
     """
     Abstract base class to initiate password reset.
     """
@@ -302,7 +327,6 @@ class BaseForgotPasswordView(generics.GenericAPIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []  # No authentication needed for forgot password
-    serializer_class = None  # To be defined in subclasses
 
     def post(self, request):
         if not settings.DISABLE_RECAPTCHA:
@@ -312,11 +336,11 @@ class BaseForgotPasswordView(generics.GenericAPIView):
                 return Response({'error': 'recaptcha_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
             
             recaptcha_response = self.verify_recaptcha(recaptcha_token)
-            if not recaptcha_response.get('success', False) or recaptcha_response.get('score', 0) < 0.5:
+            if not recaptcha_response['success'] or recaptcha_response['score'] < 0.5:
                 logger.warning("Failed reCAPTCHA verification during forgot password.")
                 return Response({'error': 'reCAPTCHA verification failed.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            logger.info("reCAPTCHA is disabled. Skipping verification for forgot password.")
+            logger.info("reCAPTCHA is disabled. Skipping verification for login.")
 
         email = request.data.get('email')
 
@@ -342,7 +366,7 @@ class BaseForgotPasswordView(generics.GenericAPIView):
         )
 
         # reset_link = f"{settings.FRONTEND_BASE_URL}/reset-password/{token}/"
-        reset_link = self.request.build_absolute_uri(reverse(self.password_reset_url_name, kwargs={'token': token}))
+        reset_link = request.build_absolute_uri(reverse(self.password_reset_url_name, kwargs={'token': token}))
         html_content = self.email_template.format(name=user.first_name or 'User', reset_link=reset_link)
         subject = self.email_subject
         send_custom_email(subject, html_content, [user.email])
@@ -372,7 +396,6 @@ class BasePasswordResetView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []  # No authentication needed for password reset
-    serializer_class = None  # To be defined in subclasses
 
     def post(self, request, token=None):
         new_password = request.data.get('new_password')
@@ -403,83 +426,50 @@ class BasePasswordResetView(APIView):
             return Response({'error': 'Something went wrong.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class BaseProfileView(generics.RetrieveUpdateAPIView):
+class BaseProfileView(APIView):   
     """
     Abstract base class for user profile view and update.
     """
     serializer_class = None  # To be defined in subclasses
+    authentication_classes = [UnifiedJWTAuthentication]  # Correctly set as a list
     permission_classes = [IsAuthenticated]
-    authentication_classes = [UnifiedJWTAuthentication]
 
-    def get_queryset(self):
-        return self.serializer_class.Meta.model.objects.all()
+    def get(self, request):
+        user = request.user  # Get the authenticated user (GenericUserWrapper instance)
+        serializer = self.serializer_class(user)
+        return Response(serializer.data)
 
-    def get_object(self):
-        return self.request.user.user  # Assuming GenericUserWrapper has a 'user' attribute
+    def post(self, request):
+        user = request.user
+        serializer = self.serializer_class(user.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            user.is_kyc_approved = True  # Assuming KYC approval is part of profile update
+            user.save()
+            logger.info(f"Profile updated for user: {user.email}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        logger.warning(f"Profile update failed for user: {user.email} with errors: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
-    def perform_update(self, serializer):
-        serializer.save()
-        user = self.request.user.user
-        user.is_kyc_approved = True  # Assuming KYC approval is part of profile update
-        user.save()
-        logger.info(f"Profile updated for user: {user.email}")
-
-
-# Define TestCaptchaSerializer inside base.py or import it
-class TestCaptchaSerializer(serializers.Serializer):
-    recaptcha_token = serializers.CharField()
-
-
-@extend_schema(
-    summary="Test Captcha",
-    description="Endpoint to test captcha functionality.",
-    request=TestCaptchaSerializer,
-    responses={
-        200: OpenApiResponse(
-            description="Captcha validated successfully.",
-            examples=[
-                OpenApiExample(
-                    name="Captcha Success Response",
-                    value={
-                        "message": "Captcha validated successfully.",
-                        "score": 0.9
-                    }
-                )
-            ]
-        ),
-        400: OpenApiResponse(
-            description="Invalid captcha.",
-            examples=[
-                OpenApiExample(
-                    name="Captcha Failure Response",
-                    value={
-                        "error": "Invalid captcha token.",
-                        "score": 0.3
-                    }
-                )
-            ]
-        )
-    },
-    tags=["Authentication"]
-)
-class TestCaptchaView(generics.GenericAPIView):
+class TestCaptchaView(APIView):
     """
     View to test Google reCAPTCHA v3.
     """
-    serializer_class = TestCaptchaSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            recaptcha_token = serializer.validated_data.get('recaptcha_token')
-            recaptcha_response = self.verify_recaptcha(recaptcha_token)
-            if recaptcha_response.get('success', False) and recaptcha_response.get('score', 0) >= 0.5:
-                return Response({'message': 'reCAPTCHA verification successful.', 'score': recaptcha_response.get('score', 0)}, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': 'reCAPTCHA verification failed.', 'score': recaptcha_response.get('score', 0)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        recaptcha_token = request.data.get('recaptcha_token')
+        if not recaptcha_token:
+            logger.warning("Captcha test attempt without recaptcha_token.")
+            return Response({'error': 'recaptcha_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        recaptcha_response = self.verify_recaptcha(recaptcha_token)
+        if recaptcha_response['success'] and recaptcha_response['score'] >= 0.5:
+            return Response({'message': 'reCAPTCHA verification successful.', 'score': recaptcha_response['score']}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'reCAPTCHA verification failed.', 'score': recaptcha_response.get('score', 0)}, status=status.HTTP_400_BAD_REQUEST)
 
     def verify_recaptcha(self, token):
         url = 'https://www.google.com/recaptcha/api/siteverify'
