@@ -72,7 +72,7 @@ class OTP(models.Model):
         ('mobile', 'Mobile'),
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
-    code = models.CharField(max_length=4)
+    code = models.CharField(max_length=6)
     type = models.CharField(max_length=10, choices=OTP_TYPE_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
