@@ -1,4 +1,4 @@
-# utils/email_utils.py
+# authapp/utils/email_utils.py
 
 import logging
 from django.conf import settings
@@ -43,4 +43,3 @@ def send_custom_email(subject, html_content, recipient_list, from_email=None, fa
         )
         if not fail_silently:
             raise e
-

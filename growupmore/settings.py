@@ -1,69 +1,45 @@
 # settings.py
 
-from pathlib import Path
-import environ
 import os
+from pathlib import Path
+from datetime import timedelta
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Load .env file
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initialize environment variables
-env = environ.Env(
-    DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, []),
-    CORS_ALLOWED_ORIGINS=(list, []),
-    CORS_ALLOW_ALL_ORIGINS=(bool, False),    
-    GOOGLE_RECAPTCHA_SECRET_KEY=(str, ''),
-    GOOGLE_RECAPTCHA_SITE_KEY=(str, ''),
-    SENDGRID_API_KEY=(str, ''),          # Added
-    DEFAULT_FROM_EMAIL=(str, ''),  
-    # Add other environment variables with their default types here
-)
-
-# Reading .env file
-environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
-
-# Access the API key
-GLOBAL_API_KEY = env("GLOBAL_API_KEY")
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-prod")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env("DEBUG")
+# Convert string "True"/"False" in .env to actual Python booleans
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-# Allowed hosts
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+# ALLOWED_HOSTS - split on comma
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# Google reCAPTCHA configuration
-GOOGLE_RECAPTCHA_SECRET_KEY = env("GOOGLE_RECAPTCHA_SECRET_KEY")
-GOOGLE_RECAPTCHA_SITE_KEY = env("GOOGLE_RECAPTCHA_SITE_KEY")
-
-# New setting
-DISABLE_RECAPTCHA = env.bool("DISABLE_RECAPTCHA", default=False)
-
-# Application definition
 INSTALLED_APPS = [
+    # Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Third-party apps
     'rest_framework',
-    'django_filters', 
-    'corsheaders', 
+    'rest_framework.authtoken',
+    'corsheaders',    
+
+    # Local apps
     'utils',
-    'authuser',
-    # 'master',
-    # 'hr',
-    # 'learn',
-    # 'product',
-    
+    'authapp',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',    
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -78,7 +54,7 @@ ROOT_URLCONF = 'growupmore.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Add template directories here if needed
+        'DIRS': [],  # add template directories if needed
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -93,81 +69,108 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'growupmore.wsgi.application'
 
-# Database configuration using DATABASE_URL from .env
+
+# Database Configuration
 DATABASES = {
-    'default': env.db('DATABASE_URL'),  # Supabase PostgreSQL URL from .env
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
-# If you are using multiple schemas
-DATABASES['default']['OPTIONS'] = {
-    'options': '-c search_path=public,authuser,master,hr,learn,product',
-}
-
-# REST Framework configuration
-REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'utils.pagination.KendoPagination',
-    'PAGE_SIZE': 10,
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
-        'rest_framework.filters.SearchFilter',
-        'rest_framework.filters.OrderingFilter',
-    ],
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'authuser.authentication.UnifiedJWTAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated', 
-    ),
-}
-
-# Simple JWT Configuration
-from datetime import timedelta
-
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-}
-
-
-# CORS configuration
-# CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=True)
-# CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
-
-CORS_ALLOW_ALL_ORIGINS = True
-
-# Password validation
+AUTH_USER_MODEL = 'authapp.User'
 AUTH_PASSWORD_VALIDATORS = []
 
-# Internationalization settings
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static and media files settings
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATIC_URL = 'static/'
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+# 1) Convert comma-separated string to a Python list
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS.split(",") if origin]
 
-# for deployment
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# 2) Convert "True"/"False" string to a boolean
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "False").lower() == "true"
 
-# SendGrid Email configuration (Removed Hostgator and Gmail settings)
-SENDGRID_API_KEY = env("SENDGRID_API_KEY")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'authapp.authentication.JWTAuthenticationCookie',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+        'authapp.throttling.LoginRateThrottle',
+        'authapp.throttling.OTPRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '1000/day',
+        'anon': '100/day',
+        'login': '5/minute',   # Custom throttle scope for login
+        'otp': '10/minute',    # Custom throttle scope for OTP-related requests
+    }
+}
 
-# Debugging (Remove in Production)
-print(f"SENDGRID_API_KEY: {SENDGRID_API_KEY}")
-print(f"DEFAULT_FROM_EMAIL: {DEFAULT_FROM_EMAIL}")
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
 
-# Default primary key field type
+# Secure Cookies Configuration
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
+# SameSite attribute for cookies
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+
+# ===== SendGrid Configuration =====
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Grow Up More <info@growupmore.com>')
+
+
+# ===== SMS API Configuration =====
+SMS_API_KEY = os.getenv('SMS_API_KEY', '')
+
+
+# ===== Google reCAPTCHA Configuration =====
+GOOGLE_RECAPTCHA_SECRET_KEY = os.getenv('GOOGLE_RECAPTCHA_SECRET_KEY', '')
+GOOGLE_RECAPTCHA_SITE_KEY   = os.getenv('GOOGLE_RECAPTCHA_SITE_KEY', '')
+DISABLE_RECAPTCHA           = os.getenv('DISABLE_RECAPTCHA', 'False').lower() == 'true'
+
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'authuser': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-FRONTEND_BASE_URL = "http://127.0.0.1:9000"
