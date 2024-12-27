@@ -36,7 +36,7 @@ logger = logging.getLogger('authuser')
 
 # Helper function to generate OTP
 def generate_otp():
-    return str(random.randint(1000, 9999))
+    return str(random.randint(100000, 999999))
 
 # Custom TokenObtainPairView to handle account lockouts, set tokens in HTTP-only cookies, and set CSRF token
 class CustomTokenObtainPairView(TokenObtainPairView):
