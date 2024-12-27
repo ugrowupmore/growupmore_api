@@ -1,23 +1,41 @@
 # settings.py
 
 import os
+import environ  # <-- NEW import
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load .env file
+# Load .env file with python-dotenv (optional if you rely solely on django-environ)
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ----------------------------------------------------
+# 1) Initialize django-environ with defaults
+env = environ.Env(
+    # Default types and values if they don't exist in .env
+    DEBUG=(bool, False),
+    ALLOWED_HOSTS=(list, []),
+    CORS_ALLOWED_ORIGINS=(list, []),
+    CORS_ALLOW_CREDENTIALS=(bool, False),
+    SECRET_KEY=(str, "change-me-in-prod"),
+    DISABLE_RECAPTCHA=(bool, False),
+    # Add more as needed...
+)
+
+# 2) Optionally read from a specific .env path
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    env.read_env(str(env_file))
+# ----------------------------------------------------
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-prod")
+SECRET_KEY = env("SECRET_KEY")  # from .env or default
 
-# Convert string "True"/"False" in .env to actual Python booleans
-DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+DEBUG = env.bool("DEBUG")       # "True"/"False" → Python bool
 
-# ALLOWED_HOSTS - split on comma
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")  # comma-separated string → list
 
 INSTALLED_APPS = [
     # Django apps
@@ -31,7 +49,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework.authtoken',
-    'corsheaders',    
+    'corsheaders',
 
     # Local apps
     'utils',
@@ -39,7 +57,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',    
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -69,14 +87,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'growupmore.wsgi.application'
 
-
-# Database Configuration
+# ----------------------------------------------------
+# Database configuration using DATABASE_URL from .env
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db("DATABASE_URL"),
 }
+# ----------------------------------------------------
 
 AUTH_USER_MODEL = 'authapp.User'
 AUTH_PASSWORD_VALIDATORS = []
@@ -96,12 +112,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # for deployment
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# 1) Convert comma-separated string to a Python list
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "")
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS.split(",") if origin]
-
-# 2) Convert "True"/"False" string to a boolean
-CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "False").lower() == "true"
+# ----------------------------------------------------
+# CORS
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_CREDENTIALS = env.bool("CORS_ALLOW_CREDENTIALS")
+# ----------------------------------------------------
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -119,8 +134,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'user': '1000/day',
         'anon': '100/day',
-        'login': '5/minute',   # Custom throttle scope for login
-        'otp': '10/minute',    # Custom throttle scope for OTP-related requests
+        'login': '5/minute',  # Custom throttle scope for login
+        'otp': '10/minute',   # Custom throttle scope for OTP-related requests
     }
 }
 
@@ -129,13 +144,13 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    
+
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    
+
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    
+
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
@@ -148,21 +163,17 @@ CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-
 # ===== SendGrid Configuration =====
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Grow Up More <info@growupmore.com>')
-
+SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Grow Up More <info@growupmore.com>")
 
 # ===== SMS API Configuration =====
-SMS_API_KEY = os.getenv('SMS_API_KEY', '')
-
+SMS_API_KEY = env("SMS_API_KEY", default="")
 
 # ===== Google reCAPTCHA Configuration =====
-GOOGLE_RECAPTCHA_SECRET_KEY = os.getenv('GOOGLE_RECAPTCHA_SECRET_KEY', '')
-GOOGLE_RECAPTCHA_SITE_KEY   = os.getenv('GOOGLE_RECAPTCHA_SITE_KEY', '')
-DISABLE_RECAPTCHA           = os.getenv('DISABLE_RECAPTCHA', 'False').lower() == 'true'
-
+GOOGLE_RECAPTCHA_SECRET_KEY = env("GOOGLE_RECAPTCHA_SECRET_KEY", default="")
+GOOGLE_RECAPTCHA_SITE_KEY   = env("GOOGLE_RECAPTCHA_SITE_KEY", default="")
+DISABLE_RECAPTCHA           = env.bool("DISABLE_RECAPTCHA", default=False)
 
 # Logging
 LOGGING = {
