@@ -1,59 +1,45 @@
-# settings.py
-
 import os
-import environ  # <-- NEW import
 from pathlib import Path
+import dj_database_url
 from datetime import timedelta
-from dotenv import load_dotenv
 
-# Load .env file with python-dotenv (optional if you rely solely on django-environ)
-load_dotenv()
+# 1. Import django-environ
+import environ
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ----------------------------------------------------
-# 1) Initialize django-environ with defaults
-env = environ.Env(
-    # Default types and values if they don't exist in .env
-    DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, []),
-    CORS_ALLOWED_ORIGINS=(list, []),
-    CORS_ALLOW_CREDENTIALS=(bool, False),
-    SECRET_KEY=(str, "change-me-in-prod"),
-    DISABLE_RECAPTCHA=(bool, False),
-    # Add more as needed...
-)
+# 2. Initialize environment variables
+env = environ.Env()
 
-# 2) Optionally read from a specific .env path
-env_file = BASE_DIR / ".env"
-if env_file.exists():
-    env.read_env(str(env_file))
-# ----------------------------------------------------
+# 3. Read the .env file
+env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env("SECRET_KEY")  # from .env or default
+# 4. Now read the variables
+SECRET_KEY = env('SECRET_KEY', default='fallback-secret-key')
+DEBUG = env.bool('DEBUG', default=False)
 
-DEBUG = env.bool("DEBUG")       # "True"/"False" → Python bool
-
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")  # comma-separated string → list
+# If you have multiple hosts, you can split them by comma
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1'])
 
 INSTALLED_APPS = [
-    # Django apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     # Third-party apps
     'rest_framework',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'django_filters',
     'corsheaders',
-
-    # Local apps
+    # Custom apps
     'utils',
-    'authapp',
+    'master',
+    'authuser',
 ]
 
 MIDDLEWARE = [
@@ -72,7 +58,7 @@ ROOT_URLCONF = 'growupmore.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # add template directories if needed
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -87,14 +73,69 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'growupmore.wsgi.application'
 
-# ----------------------------------------------------
-# Database configuration using DATABASE_URL from .env
+# Database
+DATABASE_URL = env('DATABASE_URL')
 DATABASES = {
-    'default': env.db("DATABASE_URL"),
+    'default': dj_database_url.parse(DATABASE_URL)
 }
-# ----------------------------------------------------
 
-AUTH_USER_MODEL = 'authapp.User'
+# Custom User Model
+AUTH_USER_MODEL = 'authuser.User'
+
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'authuser.authentication.CookieJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+        'rest_framework.filters.SearchFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'utils.pagination.KendoPagination',
+    'PAGE_SIZE': 10,
+}
+
+# Simple JWT Configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': False,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+
+    'JTI_CLAIM': 'jti',
+
+    # Cookies Configuration
+    'TOKEN_COOKIE': 'access',  # Access token cookie name
+    'TOKEN_COOKIE_SECURE': not DEBUG,
+    'TOKEN_COOKIE_HTTP_ONLY': True,
+    'TOKEN_COOKIE_SAMESITE': 'Lax',
+
+    'REFRESH_TOKEN_COOKIE': 'refresh',  # Refresh token cookie name
+    'REFRESH_TOKEN_COOKIE_SECURE': not DEBUG,
+    'REFRESH_TOKEN_COOKIE_HTTP_ONLY': True,
+    'REFRESH_TOKEN_COOKIE_SAMESITE': 'Lax',
+}
+
 AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = 'en-us'
@@ -102,94 +143,38 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static and media files settings
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
+# Static files
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# for deployment
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:9000",
+]
+CORS_ALLOW_CREDENTIALS = True
 
-# ----------------------------------------------------
-# CORS
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS")
-CORS_ALLOW_CREDENTIALS = env.bool("CORS_ALLOW_CREDENTIALS")
-# ----------------------------------------------------
+# Email Configuration using SendGrid
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'authapp.authentication.JWTAuthenticationCookie',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.UserRateThrottle',
-        'rest_framework.throttling.AnonRateThrottle',
-        'authapp.throttling.LoginRateThrottle',
-        'authapp.throttling.OTPRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'user': '1000/day',
-        'anon': '100/day',
-        'login': '5/minute',  # Custom throttle scope for login
-        'otp': '10/minute',   # Custom throttle scope for OTP-related requests
-    }
-}
+DEFAULT_FROM_EMAIL = "Grow Up More <info@growupmore.com>"
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+# SMS API Key
+SMS_API_KEY = env('SMS_API_KEY', default='')
 
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+# Google reCAPTCHA settings
+GOOGLE_RECAPTCHA_SECRET_KEY = env('GOOGLE_RECAPTCHA_SECRET_KEY', default='')
+GOOGLE_RECAPTCHA_SITE_KEY = env('GOOGLE_RECAPTCHA_SITE_KEY', default='')
+DISABLE_RECAPTCHA = env.bool('DISABLE_RECAPTCHA', default=False)
 
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
+# OTP Configuration
+OTP_EXPIRY_MINUTES = 15
+OTP_MAX_ATTEMPTS = 5
 
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-}
+# Login Configuration
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCK_DURATION_HOURS = 24
 
-# Secure Cookies Configuration
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-
-# SameSite attribute for cookies
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
-
-# ===== SendGrid Configuration =====
-SENDGRID_API_KEY = env("SENDGRID_API_KEY", default="")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Grow Up More <info@growupmore.com>")
-
-# ===== SMS API Configuration =====
-SMS_API_KEY = env("SMS_API_KEY", default="")
-
-# ===== Google reCAPTCHA Configuration =====
-GOOGLE_RECAPTCHA_SECRET_KEY = env("GOOGLE_RECAPTCHA_SECRET_KEY", default="")
-GOOGLE_RECAPTCHA_SITE_KEY   = env("GOOGLE_RECAPTCHA_SITE_KEY", default="")
-DISABLE_RECAPTCHA           = env.bool("DISABLE_RECAPTCHA", default=False)
-
-# Logging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'loggers': {
-        'authuser': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    },
-}
+# Resend OTP Configuration
+MAX_RESEND_OTP_ATTEMPTS = 5
+RESEND_OTP_LOCK_DURATION_MINUTES = 60
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

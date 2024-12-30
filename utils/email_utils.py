@@ -1,4 +1,4 @@
-# authapp/utils/email_utils.py
+# utils/email_utils.py
 
 import logging
 from django.conf import settings

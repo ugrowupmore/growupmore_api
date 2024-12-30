@@ -1,4 +1,4 @@
-# authapp/utils/sms_utils.py
+# utils/sms_otp_utils.py
 
 import requests
 import logging
@@ -7,7 +7,7 @@ from django.conf import settings
 # Initialize logger
 logger = logging.getLogger('authuser')  # Use the appropriate logger
 
-def send_sms(destination, otp_code, campaign_name="otp_verification"):
+def send_otp_sms(destination, otp_code, campaign_name="otp_verification"):
     """
     Sends an SMS using the provided API.
 
