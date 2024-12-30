@@ -143,8 +143,15 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
+# Static and media files settings
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# for deployment
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
